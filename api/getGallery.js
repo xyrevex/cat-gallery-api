@@ -11,11 +11,16 @@ export default function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    if (!fs.existsSync(GALLERY_FILE)) fs.writeFileSync(GALLERY_FILE, JSON.stringify({ catUrls: [] }));
-    const data = JSON.parse(fs.readFileSync(GALLERY_FILE, "utf-8"));
+    if (!fs.existsSync(GALLERY_FILE)) {
+      fs.writeFileSync(GALLERY_FILE, JSON.stringify({ catUrls: [] }));
+    }
+
+    const rawData = fs.readFileSync(GALLERY_FILE, "utf-8");
+    const data = rawData ? JSON.parse(rawData) : { catUrls: [] };
+
     res.status(200).json(data);
   } catch (err) {
-    console.error(err);
+    console.error("Error reading gallery.json:", err);
     res.status(500).json({ error: "Failed to load gallery" });
   }
 }
