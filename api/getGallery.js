@@ -1,26 +1,17 @@
-import fs from "fs";
-import path from "path";
-
-const GALLERY_FILE = path.join(process.cwd(), "gallery.json");
-
-export default function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-
-  if (req.method === "OPTIONS") return res.status(200).end();
-
+async function loadGallery() {
   try {
-    if (!fs.existsSync(GALLERY_FILE)) {
-      fs.writeFileSync(GALLERY_FILE, JSON.stringify({ catUrls: [] }));
-    }
-
-    const rawData = fs.readFileSync(GALLERY_FILE, "utf-8");
-    const data = rawData ? JSON.parse(rawData) : { catUrls: [] };
-
-    res.status(200).json(data);
+    const res = await fetch("https://92f920f6d4409b6e49817851354326d6.r2.cloudflarestorage.com/cat/gallery.json");
+    const data = await res.json();
+    catUrls = data.catUrls || [];
+    catUrls.sort((a,b)=>new Date(b.time)-new Date(a.time));
+    gallery.innerHTML = "";
+    catUrls.forEach(item => {
+      const username = item.username || "Anonymous";
+      addCatToGallery(item.url, item.time, username);
+    });
+    catCount.textContent = `Total Cats: ${catUrls.length}`;
   } catch (err) {
-    console.error("Error reading gallery.json:", err);
-    res.status(500).json({ error: "Failed to load gallery" });
+    console.error(err);
+    status.textContent = "Could not load gallery.";
   }
-}  // dont tell me it was the file name..
+}
