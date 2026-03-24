@@ -50,7 +50,7 @@ export default async function handler(req, res) {
           ContentType: type,
         }));
 
-        const publicUrl = `https://cat.92f920f6d4409b6e49817851354326d6.r2.cloudflarestorage.com/${filename}`;
+        const publicUrl = `https://pub-3832192343c34f2887d202608e54a76f.r2.dev/gallery.json/${encodeURIComponent(filename)}`;
         const time = new Date().toISOString();
         gallery.unshift({ url: publicUrl, time, username: username || "Anonymous" });
 
