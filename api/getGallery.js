@@ -1,15 +1,15 @@
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+import fs from "fs";
+import path from "path";
 
-  const API_KEY = process.env.JSONBIN_KEY;
-  const BIN_ID = process.env.BIN_ID;
+const GALLERY_FILE = path.join(process.cwd(), "gallery.json");
 
-  const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-    headers: {
-      "X-Master-Key": API_KEY
-    }
-  });
-
-  const data = await response.json();
-  res.status(200).json(data.record);
+export default function handler(req, res) {
+  try {
+    if (!fs.existsSync(GALLERY_FILE)) fs.writeFileSync(GALLERY_FILE, JSON.stringify({ catUrls: [] }));
+    const data = JSON.parse(fs.readFileSync(GALLERY_FILE, "utf-8"));
+    res.status(200).json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to load gallery" });
+  }
 }
