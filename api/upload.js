@@ -9,10 +9,18 @@ const client = new S3Client({
   },
 });
 
-let gallery = [];
+let gallery = []; 
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "1000mb", 
+    },
+  },
+};
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*"); // please speed i need this, my websites kinda CORSless
+  res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
@@ -23,8 +31,7 @@ export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const body = req.body && Object.keys(req.body).length ? req.body : JSON.parse(req.body || "{}");
-    const { filename, type, fileBase64, username } = body;
+    const { filename, type, fileBase64, username } = req.body;
 
     if (!filename || !type || !fileBase64) {
       return res.status(400).json({ error: "Missing filename, type, or fileBase64" });
