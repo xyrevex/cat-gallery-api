@@ -1,9 +1,16 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+process.on('warning', (warning) => {
+  if (warning.code === 'DEP0169') return; 
+  console.warn(warning);
+});
+
+const endpoint = new URL(`https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`);
+
 const r2Client = new S3Client({
   region: "auto",
-  endpoint: `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  endpoint: endpoint.toString(),
   credentials: {
     accessKeyId: process.env.R2_TOKEN,
     secretAccessKey: process.env.R2_TOKEN,
@@ -11,32 +18,17 @@ const r2Client = new S3Client({
 });
 
 export default async function handler(req, res) {
+  // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    let body = {};
-    if (req.method === "POST") {
-      if (req.headers["content-type"]?.includes("application/json")) {
-        body = req.body;
-      } else {
-        body = JSON.parse(
-          await new Promise((resolve, reject) => {
-            let data = "";
-            req.on("data", (chunk) => (data += chunk));
-            req.on("end", () => resolve(data));
-            req.on("error", reject);
-          })
-        );
-      }
-    }
-
-    const { filename, type } = req.method === "POST" ? body : req.query;
+    const { filename, type } = req.method === "POST" ? req.body : req.query;
 
     if (!filename || !type) {
-      console.log("Received filename:", filename, "type:", type);
+      console.log("Missing filename or type:", { filename, type });
       return res.status(400).json({ error: "Missing filename or type" });
     }
 
@@ -50,7 +42,7 @@ export default async function handler(req, res) {
 
     const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 });
 
-    const publicUrl = `https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com/${process.env.R2_BUCKET}/${key}`;
+    const publicUrl = `${endpoint.toString()}/${process.env.R2_BUCKET}/${key}`;
 
     res.status(200).json({ url: signedUrl, key, publicUrl });
   } catch (err) {
