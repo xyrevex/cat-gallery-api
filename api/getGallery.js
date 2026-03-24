@@ -23,4 +23,4 @@ export default function handler(req, res) {
     console.error("Error reading gallery.json:", err);
     res.status(500).json({ error: "Failed to load gallery" });
   }
-}
+} //idk what im doin
