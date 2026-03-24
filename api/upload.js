@@ -13,12 +13,13 @@ let gallery = [];
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "PUT, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") return res.status(200).end();
 
-  if (req.method === "POST") return res.status(200).end();
-  if (req.method === "GET") return res.status(200).end();
-  if (req.method !== "PUT") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "PUT") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   let body;
   try {
@@ -49,13 +50,12 @@ export default async function handler(req, res) {
     }));
 
     const publicUrl = `https://cat.92f920f6d4409b6e49817851354326d6.r2.cloudflarestorage.com/${filename}`;
-
     const time = new Date().toISOString();
     gallery.unshift({ url: publicUrl, time, username: username || "Anonymous" });
 
-    res.status(200).json({ url: publicUrl });
+    return res.status(200).json({ url: publicUrl });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Upload failed" });
+    return res.status(500).json({ error: "Upload failed" });
   }
 }
