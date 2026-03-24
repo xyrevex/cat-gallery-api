@@ -15,10 +15,26 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   try {
-    const { filename, type } = req.method === "POST" ? req.body : req.query;
+    let body = {};
+    if (req.method === "POST") {
+      if (req.headers["content-type"]?.includes("application/json")) {
+        body = req.body;
+      } else {
+        body = JSON.parse(await new Promise((resolve, reject) => {
+          let data = "";
+          req.on("data", chunk => (data += chunk));
+          req.on("end", () => resolve(data));
+          req.on("error", reject);
+        }));
+      }
+    }
 
-    if (!filename || !type)
+    const { filename, type } = req.method === "POST" ? body : req.query;
+
+    if (!filename || !type) {
+      console.log("Received filename:", filename, "type:", type);
       return res.status(400).json({ error: "Missing filename or type" });
+    }
 
     const key = `cats/${Date.now()}-${filename}`;
     const signedUrl = await r2.getSignedUrlPromise("putObject", {
@@ -32,7 +48,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ url: signedUrl, key, publicUrl });
   } catch (err) {
-    console.error(err);
+    console.error("Handler error:", err);
     res.status(500).json({ error: "Failed to generate signed URL" });
   }
 }
