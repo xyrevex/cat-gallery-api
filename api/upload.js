@@ -14,22 +14,7 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
   try {
-    let body = {};
-    if (req.method === "POST") {
-      if (req.headers["content-type"]?.includes("application/json")) {
-        body = req.body;
-      } else {
-        body = JSON.parse(
-          await new Promise((resolve, reject) => {
-            let data = "";
-            req.on("data", (chunk) => (data += chunk));
-            req.on("end", () => resolve(data));
-            req.on("error", reject);
-          })
-        );
-      }
-    }
-    const { filename, type } = req.method === "POST" ? body : req.query;
+    const { filename, type } = req.method === "POST" ? req.body : req.query;
     if (!filename || !type) {
       console.log("Received filename:", filename, "type:", type);
       return res.status(400).json({ error: "Missing filename or type" });
