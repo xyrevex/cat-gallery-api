@@ -1,52 +1,53 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-process.on('warning', (warning) => {
-  if (warning.code === 'DEP0169') return; 
-  console.warn(warning);
-});
-
-const endpoint = new URL(`https://${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com`);
-
-const r2Client = new S3Client({
+const client = new S3Client({
   region: "auto",
-  endpoint: endpoint.toString(),
+  endpoint: "https://92f920f6d4409b6e49817851354326d6.r2.cloudflarestorage.com",
   credentials: {
-    accessKeyId: process.env.R2_TOKEN,
-    secretAccessKey: process.env.R2_TOKEN,
+    accessKeyId: process.env.R2_ACCESS_KEY_ID,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
   },
 });
 
+let gallery = [];
+
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  if (req.method === "OPTIONS") return res.status(200).end();
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end(); 
+  }
+
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   try {
-    const { filename, type } = req.method === "POST" ? req.body : req.query;
+    const body = req.body && Object.keys(req.body).length ? req.body : JSON.parse(req.body || "{}");
+    const { filename, type, fileBase64, username } = body;
 
-    if (!filename || !type) {
-      console.log("Missing filename or type:", { filename, type });
-      return res.status(400).json({ error: "Missing filename or type" });
+    if (!filename || !type || !fileBase64) {
+      return res.status(400).json({ error: "Missing filename, type, or fileBase64" });
     }
 
-    const key = `cats/${Date.now()}-${filename}`;
+    const buffer = Buffer.from(fileBase64, "base64");
+    await client.send(
+      new PutObjectCommand({
+        Bucket: "cat", 
+        Key: filename,
+        Body: buffer,
+        ContentType: type,
+      })
+    );
 
-    const command = new PutObjectCommand({
-      Bucket: process.env.R2_BUCKET,
-      Key: key,
-      ContentType: type,
-    });
+    const publicUrl = `https://cat.92f920f6d4409b6e49817851354326d6.r2.cloudflarestorage.com/${filename}`;
 
-    const signedUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 });
+    const time = new Date().toISOString();
+    gallery.unshift({ url: publicUrl, time, username: username || "Anonymous" });
 
-    const publicUrl = `${endpoint.toString()}/${process.env.R2_BUCKET}/${key}`;
-
-    res.status(200).json({ url: signedUrl, key, publicUrl });
+    res.status(200).json({ url: publicUrl });
   } catch (err) {
-    console.error("Handler error:", err);
-    res.status(500).json({ error: "Failed to generate signed URL" });
+    console.error(err);
+    res.status(500).json({ error: "Upload failed" });
   }
 }
