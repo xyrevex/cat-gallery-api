@@ -9,43 +9,43 @@ const client = new S3Client({
   },
 });
 
-let gallery = []; 
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "1000mb", 
-    },
-  },
-};
+let gallery = [];
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, GET, PUT, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  if (req.method === "POST") {
-    return res.status(200).end();
-  }
-
+  if (req.method === "POST") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
+  let body;
   try {
-    const { filename, type, fileBase64, username } = req.body;
+    body = req.body && Object.keys(req.body).length ? req.body : await new Promise((resolve, reject) => {
+      let data = "";
+      req.on("data", chunk => data += chunk);
+      req.on("end", () => {
+        try { resolve(JSON.parse(data)); } catch(e){ reject(e); }
+      });
+      req.on("error", reject);
+    });
+  } catch (err) {
+    return res.status(400).json({ error: "Invalid JSON" });
+  }
 
-    if (!filename || !type || !fileBase64) {
-      return res.status(400).json({ error: "Missing filename, type, or fileBase64" });
-    }
+  const { filename, type, fileBase64, username } = body;
+  if (!filename || !type || !fileBase64) {
+    return res.status(400).json({ error: "Missing filename, type, or fileBase64" });
+  }
 
+  try {
     const buffer = Buffer.from(fileBase64, "base64");
-    await client.send(
-      new PutObjectCommand({
-        Bucket: "cat",
-        Key: filename,
-        Body: buffer,
-        ContentType: type,
-      })
-    );
+    await client.send(new PutObjectCommand({
+      Bucket: "cat",
+      Key: filename,
+      Body: buffer,
+      ContentType: type,
+    }));
 
     const publicUrl = `https://cat.92f920f6d4409b6e49817851354326d6.r2.cloudflarestorage.com/${filename}`;
 
